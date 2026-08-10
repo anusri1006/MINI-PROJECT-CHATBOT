@@ -5,12 +5,19 @@ import { askNvidiaAI } from './services/nvidiaAI.js';
 import { findMatchingColleges, normalizeCommunity } from './services/cutoffService.js';
 import { parseQuery, extractConversationContext } from './services/queryParser.js';
 import { buildAiContext } from './services/aiContext.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
 const app = express();
-app.get('/', (req, res) => {
-  res.send('Server is running successfully!');
+app.use(express.static(path.join(__dirname, '../client')));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/index.html'));
 });
 const PORT = process.env.PORT || 5000;
 
