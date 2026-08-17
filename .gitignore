@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+tnea-chat-bot/client/node_modules/
+tnea-chat-bot/server/node_modules/
+
+# Environment variables (contains sensitive API keys)
+.env
+tnea-chat-bot/server/.env
+
+# Build outputs
+dist/
+tnea-chat-bot/client/dist/
+
+# Logs and temp files
+*.log
+.DS_Store
