@@ -16,9 +16,7 @@ dotenv.config();
 const app = express();
 app.use(express.static(path.join(__dirname, '../client')));
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/index.html'));
-});
+
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
@@ -279,6 +277,10 @@ app.post('/api/predict', (req, res) => {
     console.error("Prediction Engine Error:", error);
     res.status(500).json({ error: "An error occurred inside the TNEA Prediction Engine." });
   }
+});
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/index.html'));
 });
 
 app.listen(PORT, () => {
