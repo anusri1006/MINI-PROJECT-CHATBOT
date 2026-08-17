@@ -20,25 +20,38 @@ const p1 = parseQuery("My cutoff is 192.5 and I am BC. I want CSE.");
 assert(p1.cutoff === 192.5, "Should extract decimal cutoff 192.5");
 assert(p1.community === "BC", "Should extract community BC");
 assert(p1.branch === "CSE", "Should extract branch CSE");
-assert(p1.intent === "prediction", "Intent should be prediction");
+assert(p1.intent === "tnea_prediction", "Intent should be tnea_prediction");
 
 // 2. Test parseQuery on college query
 const p2 = parseQuery("Can I get GCT Coimbatore?");
 assert(p2.collegeQuery === "GCT", "Should extract known college abbreviation GCT");
-assert(p2.intent === "college_search", "Intent should be college_search");
+assert(p2.intent === "tnea_college_search", "Intent should be tnea_college_search");
 
 // 3. Test parseQuery on comparison
 const p3 = parseQuery("Compare GCT and CIT.");
 assert(Array.isArray(p3.collegeQuery) && p3.collegeQuery[0] === "GCT" && p3.collegeQuery[1] === "CIT", "Should extract array of colleges for comparison");
-assert(p3.intent === "comparison", "Intent should be comparison");
+assert(p3.intent === "tnea_comparison", "Intent should be tnea_comparison");
 
 // 4. Test parseQuery on general questions
 const p4 = parseQuery("What is choice filling?");
-assert(p4.intent === "general_tnea", "Intent should be general_tnea for general questions");
+assert(p4.intent === "tnea_general", "Intent should be tnea_general for TNEA general questions");
 
 // 5. Test parseQuery on branch search
 const p5 = parseQuery("What branches can I get?");
-assert(p5.intent === "branch_search", "Intent should be branch_search");
+assert(p5.intent === "tnea_branch_search", "Intent should be tnea_branch_search");
+
+// 5.1 Test parseQuery on general chatbot queries
+const pg1 = parseQuery("Hello");
+assert(pg1.intent === "general", "Hello should be classified as general");
+
+const pg2 = parseQuery("What is React?");
+assert(pg2.intent === "general", "What is React? should be classified as general");
+
+const pg3 = parseQuery("Tell me a joke.");
+assert(pg3.intent === "general", "Tell me a joke. should be classified as general");
+
+const pg4 = parseQuery("Explain recursion simply.");
+assert(pg4.intent === "general", "Explain recursion simply. should be classified as general");
 
 // 6. Test Context propagation (Backfilling from history)
 const history1 = [
@@ -51,6 +64,20 @@ const context1 = extractConversationContext(history1);
 assert(context1.cutoff === 192, "Context should pull cutoff 192 from history");
 assert(context1.community === "BC", "Context should pull community BC from history");
 assert(context1.branch === "CSE", "Context should pull branch CSE from history");
+
+// 6.1 Test Topic Switching Context preservation (General question in between TNEA steps)
+const historyTopicSwitch = [
+  { role: "user", content: "My cutoff is 192 and I'm BC." },
+  { role: "assistant", content: "..." },
+  { role: "user", content: "I want CSE." },
+  { role: "assistant", content: "..." },
+  { role: "user", content: "What is React?" },
+  { role: "assistant", content: "..." }
+];
+const contextTopicSwitch = extractConversationContext(historyTopicSwitch);
+assert(contextTopicSwitch.cutoff === 192, "Context should preserve cutoff 192 across topic switch");
+assert(contextTopicSwitch.community === "BC", "Context should preserve community BC across topic switch");
+assert(contextTopicSwitch.branch === "CSE", "Context should preserve branch CSE across topic switch");
 
 // 7. Test Context change (Preserving old context but updating branch)
 const history2 = [

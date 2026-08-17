@@ -54,7 +54,7 @@ function isStudentCutoffContext(message, numStr) {
  * @param {string} message 
  * @returns {object} parsed parameters and classified intent
  */
-export function parseQuery(message) {
+export function parseQuery(message, historyContext = { cutoff: null, community: null, branch: null, collegeQuery: null }) {
   const result = {
     cutoff: null,
     community: null,
@@ -142,28 +142,62 @@ export function parseQuery(message) {
   }
 
   // 5. Classify Intent
-  if (lowerMsg.includes("compare") || lowerMsg.includes(" vs ")) {
-    result.intent = "comparison";
-  } else if (
-    lowerMsg.includes("what is tnea") || 
-    lowerMsg.includes("how does counselling") || 
-    lowerMsg.includes("choice filling") || 
-    lowerMsg.includes("community reservation")
-  ) {
-    result.intent = "general_tnea";
-  } else if (
-    lowerMsg.includes("what branch") || 
-    lowerMsg.includes("which branch") || 
-    lowerMsg.includes("what branches") ||
-    lowerMsg.includes("branch search")
-  ) {
-    result.intent = "branch_search";
-  } else if (result.collegeQuery && !result.cutoff) {
-    result.intent = "college_search";
-  } else if (result.cutoff !== null && result.community !== null) {
-    result.intent = "prediction";
+  const isGreeting = /^(hello|hi|hey|good\s+(morning|afternoon|evening)|how\s+are\s+you|how's\s+it\s+going|how\s+are\s+you\s+doing|yo|sup)\b/i.test(lowerMsg);
+  const isCasual = /^(tell\s+me\s+a\s+joke|give\s+me\s+a\s+joke|i'm\s+bored|i\s+am\s+bored|talk\s+to\s+me|tell\s+me\s+a\s+story|what\s+is\s+the\s+weather|how\s+is\s+the\s+weather)\b/i.test(lowerMsg);
+  
+  // General programming, CS, non-TNEA tech keywords
+  const hasTechKeywords = /\b(python|javascript|react|angular|html|css|c\+\+|java|sql|nosql|recursion|recursive|algorithm|programming|code|coder|developer|full-stack|full\s+stack|frontend|backend|software|elon\s+musk|bill\s+gates|steve\s+jobs|chatgpt|openai|google|microsoft)\b/i.test(lowerMsg);
+
+  // Common general question patterns (e.g., "what is ...", "who is ...", "explain ...")
+  const isGeneralQuestionPattern = /^(what\s+is|who\s+is|explain|how\s+does|difference\s+between|how\s+to|give\s+me\s+a|write\s+a|create\s+a|can\s+you)\b/i.test(lowerMsg);
+
+  // Explicit TNEA keywords
+  const hasTneaKeywords = /\b(tnea|counc?elling|choice\s*filling|choice-?filling|allotment|cutoff|cut-off|cut\s+off|cote|dte|dote)\b/i.test(lowerMsg);
+  
+  // TNEA College names / abbreviations
+  const hasTneaColleges = /\b(gct|cit|psg|mit|ceg|ssn|thiagarajar|anna\s+university)\b/i.test(lowerMsg);
+
+  // Check if we have TNEA context in history
+  const hasHistoryTneaContext = (historyContext && (historyContext.cutoff !== null || historyContext.community !== null));
+
+  // Determine intent
+  if (isGreeting || isCasual) {
+    result.intent = "general";
+  } else if ((hasTechKeywords || isGeneralQuestionPattern) && !hasTneaKeywords && !hasTneaColleges && result.cutoff === null && !result.community && !/\b(branch|branches)\b/i.test(lowerMsg)) {
+    if (result.branch && hasHistoryTneaContext) {
+      result.intent = "follow_up";
+    } else {
+      result.intent = "general";
+    }
+  } else if (!hasTneaKeywords && !hasTneaColleges && result.cutoff === null && !result.community && !result.branch && !hasHistoryTneaContext && !/\b(branch|branches)\b/i.test(lowerMsg)) {
+    result.intent = "general";
   } else {
-    result.intent = "follow_up";
+    // TNEA or follow_up intent
+    if (lowerMsg.includes("compare") || lowerMsg.includes(" vs ")) {
+      result.intent = "tnea_comparison";
+    } else if (
+      lowerMsg.includes("what is tnea") || 
+      lowerMsg.includes("how does counselling") || 
+      lowerMsg.includes("choice filling") || 
+      lowerMsg.includes("community reservation")
+    ) {
+      result.intent = "tnea_general";
+    } else if (
+      lowerMsg.includes("what branch") || 
+      lowerMsg.includes("which branch") || 
+      lowerMsg.includes("what branches") ||
+      lowerMsg.includes("branch search") ||
+      lowerMsg.includes("branches can i") ||
+      lowerMsg.includes("available branches")
+    ) {
+      result.intent = "tnea_branch_search";
+    } else if (result.collegeQuery && result.cutoff === null) {
+      result.intent = "tnea_college_search";
+    } else if (result.cutoff !== null || result.community !== null) {
+      result.intent = "tnea_prediction";
+    } else {
+      result.intent = "follow_up";
+    }
   }
 
   return result;

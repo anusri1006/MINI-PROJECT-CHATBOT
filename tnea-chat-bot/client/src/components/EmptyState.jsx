@@ -54,13 +54,13 @@ export default function EmptyState({ onSelectSuggestion, onStartPrediction }) {
       transition={{ duration: 0.5 }}
     >
       <div className="empty-state-badge">
-        <span>🇮🇳</span> TNEA Counselling Portal AI Assistant
+        <span>🇮🇳</span> TNEA & General AI Assistant
       </div>
       
       <h2 className="empty-state-title">TNEA Counselling AI</h2>
       
       <p className="empty-state-desc">
-        Your intelligent assistant for TNEA college predictions. Enter your cutoff, community, and preferred branch, and I'll help you explore suitable colleges using TNEA cutoff data.
+        A general conversational AI assistant with specialized TNEA counselling and college prediction. Ask me general questions, coding problems, or provide your cutoff to explore suitable colleges.
       </p>
 
       <button className="btn-start-prediction" onClick={onStartPrediction}>
