@@ -127,6 +127,43 @@ const historyCorrection2 = [
 const contextCorrection2 = extractConversationContext(historyCorrection2);
 assert(contextCorrection2.cutoff === 188, "Context correction should update cutoff score 192 -> 188");
 
+// 10.1 Test College Type and Location Query Extraction
+const pTypeLoc = parseQuery("Show government colleges in Chennai.");
+assert(pTypeLoc.collegeType === "government", "Should extract college type 'government'");
+assert(pTypeLoc.location === "Chennai", "Should extract location 'Chennai'");
+
+const pAutonomousLoc = parseQuery("Show autonomous colleges near Coimbatore.");
+assert(pAutonomousLoc.collegeType === "autonomous", "Should extract college type 'autonomous'");
+assert(pAutonomousLoc.location === "Coimbatore", "Should extract location 'Coimbatore'");
+
+const pGovtAidedTrichy = parseQuery("Only govt aided colleges in Trichy.");
+assert(pGovtAidedTrichy.collegeType === "government-aided", "Should extract college type 'government-aided'");
+assert(pGovtAidedTrichy.location === "Tiruchirappalli", "Should extract location 'Tiruchirappalli' (mapped from 'Trichy')");
+
+// 10.2 Test College Type and Location Context Propagation
+const historyTypeLoc = [
+  { role: "user", content: "I'm BC and my cutoff is 192." },
+  { role: "assistant", content: "..." },
+  { role: "user", content: "Only government colleges." },
+  { role: "assistant", content: "..." },
+  { role: "user", content: "What about in Coimbatore?" }
+];
+const contextTypeLoc = extractConversationContext(historyTypeLoc);
+assert(contextTypeLoc.cutoff === 192, "Context should preserve cutoff 192");
+assert(contextTypeLoc.community === "BC", "Context should preserve community BC");
+assert(contextTypeLoc.collegeType === "government", "Context should propagate collegeType 'government'");
+assert(contextTypeLoc.location === "Coimbatore", "Context should update location to 'Coimbatore'");
+
+// 10.3 Test College Type and Location Corrections/Overrides
+const historyCorrectionTypeLoc = [
+  { role: "user", content: "I want autonomous colleges in Madurai." },
+  { role: "assistant", content: "..." },
+  { role: "user", content: "Actually show government colleges in Salem." }
+];
+const contextCorrectionTypeLoc = extractConversationContext(historyCorrectionTypeLoc);
+assert(contextCorrectionTypeLoc.collegeType === "government", "Should override collegeType autonomous -> government");
+assert(contextCorrectionTypeLoc.location === "Salem", "Should override location Madurai -> Salem");
+
 // 11. Test aiContext builder structure
 const sampleResults = findMatchingColleges({
   studentCutoff: 192,

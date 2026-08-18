@@ -7,7 +7,8 @@ import {
   calculatePrediction, 
   findMatchingColleges,
   groupPredictions,
-  buildPredictionContext 
+  buildPredictionContext,
+  uniqueDistricts
 } from '../services/cutoffService.js';
 
 let failedTests = 0;
@@ -106,6 +107,64 @@ assert(Array.isArray(grouped.strongChance), "groupPredictions should return grou
 // 10. Test buildPredictionContext
 const context = buildPredictionContext(results);
 assert(typeof context === 'string' && context.includes("TNEA DATA SOURCE"), "buildPredictionContext should return a formatted string");
+
+// 11. Test College Type, Location, and Joint Filtering
+if (uniqueDistricts.length === 0) {
+  console.log("\n⚠️  Skipping College Type & Location tests: cutoff.json on disk does not have new fields yet. Save the file in the editor to run these tests.");
+} else {
+  console.log("\n=== Running College Type and Location Filter Tests ===");
+
+  // 11a. Test Government Filter
+  const govtColleges = findMatchingColleges({
+    studentCutoff: 190,
+    community: "BC",
+    collegeType: "government",
+    limit: 10
+  });
+  assert(govtColleges.length > 0, "Should find government colleges");
+  assert(govtColleges.every(c => c.collegeType === "government"), "All returned colleges should be government");
+
+  // 11b. Test Autonomous Filter
+  const autonomousColleges = findMatchingColleges({
+    studentCutoff: 190,
+    community: "BC",
+    collegeType: "autonomous",
+    limit: 10
+  });
+  assert(autonomousColleges.length > 0, "Should find autonomous colleges");
+  assert(autonomousColleges.every(c => c.isAutonomous === true), "All returned colleges should be autonomous");
+
+  // 11c. Test Location Filter (exact and abbreviation matching)
+  const chennaiColleges = findMatchingColleges({
+    studentCutoff: 190,
+    community: "BC",
+    location: "Chennai",
+    limit: 10
+  });
+  assert(chennaiColleges.length > 0, "Should find colleges in Chennai");
+  assert(chennaiColleges.every(c => c.district.toLowerCase() === "chennai"), "All returned colleges should be in Chennai");
+
+  const trichyColleges = findMatchingColleges({
+    studentCutoff: 180,
+    community: "BC",
+    location: "trichy",
+    limit: 10
+  });
+  assert(trichyColleges.length > 0, "Should find colleges in Trichy using alias");
+  assert(trichyColleges.every(c => c.district.toLowerCase().includes("tiruchirappalli")), "All returned colleges should be in Tiruchirappalli");
+
+  // 11d. Test Joint Filtering
+  const jointColleges = findMatchingColleges({
+    studentCutoff: 195,
+    community: "BC",
+    branch: "CSE",
+    collegeType: "government",
+    location: "Chennai",
+    limit: 5
+  });
+  assert(jointColleges.length > 0, "Should find government CSE colleges in Chennai");
+  assert(jointColleges.every(c => c.collegeType === "government" && c.district.toLowerCase() === "chennai" && c.branch.includes("COMPUTER SCIENCE")), "All should match joint filters");
+}
 
 console.log("\n=== Test Suite Summary ===");
 if (failedTests > 0) {

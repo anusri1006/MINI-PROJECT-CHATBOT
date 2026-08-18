@@ -1,3 +1,76 @@
+import { uniqueDistricts } from './cutoffService.js';
+
+/**
+ * Extracts a location/district from the query message, matching against the dataset's unique districts
+ * and mapping common abbreviations (e.g. "trichy" -> "tiruchirappalli", "kovai" -> "coimbatore").
+ * @param {string} message
+ * @returns {string|null} matched district name
+ */
+export function extractLocation(message) {
+  if (!message) return null;
+  const lowerMsg = message.toLowerCase();
+
+  // Common aliases mapping to lowercase representation in dataset
+  const mappings = {
+    'trichy': 'tiruchirappalli',
+    'tiruchirappalli': 'tiruchirappalli',
+    'tiruchy': 'tiruchirappalli',
+    'kovai': 'coimbatore',
+    'coimbatore': 'coimbatore',
+    'chennai': 'chennai',
+    'madurai': 'madurai',
+    'salem': 'salem',
+    'erode': 'erode'
+  };
+
+  // 1. Check custom mappings first
+  for (const [key, val] of Object.entries(mappings)) {
+    if (new RegExp(`\\b${key}\\b`, 'i').test(lowerMsg)) {
+      // Find the actual case-sensitive value in the dataset
+      const matched = uniqueDistricts.find(d => d.toLowerCase() === val);
+      if (matched) return matched;
+      // Fallback if dataset hasn't finished loading or is missing the exact entry
+      return val.charAt(0).toUpperCase() + val.slice(1);
+    }
+  }
+
+  // 2. Fallback to scanning all unique districts present in cutoff.json dynamically
+  for (const dist of uniqueDistricts) {
+    const distLower = dist.toLowerCase();
+    const escaped = distLower.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    if (new RegExp(`\\b${escaped}\\b`, 'i').test(lowerMsg)) {
+      return dist; // Return the exact string formatting from cutoff.json
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extracts preferred college type from the query message.
+ * @param {string} message
+ * @returns {string|null} normalized college type filter
+ */
+export function extractCollegeType(message) {
+  if (!message) return null;
+  const lowerMsg = message.toLowerCase();
+
+  if (/\b(aided|government-aided|govt-aided|govt\s+aided|government\s+aided)\b/i.test(lowerMsg)) {
+    return 'government-aided';
+  }
+  if (/\b(government|govt)\b/i.test(lowerMsg)) {
+    return 'government';
+  }
+  if (/\b(autonomous)\b/i.test(lowerMsg)) {
+    return 'autonomous';
+  }
+  if (/\b(private|self-financing|self\s+financing)\b/i.test(lowerMsg)) {
+    return 'private';
+  }
+
+  return null;
+}
+
 /**
  * Heuristic to check if a numeric value in a message refers to the student's own cutoff
  * @param {string} message 
@@ -54,12 +127,14 @@ function isStudentCutoffContext(message, numStr) {
  * @param {string} message 
  * @returns {object} parsed parameters and classified intent
  */
-export function parseQuery(message, historyContext = { cutoff: null, community: null, branch: null, collegeQuery: null }) {
+export function parseQuery(message, historyContext = { cutoff: null, community: null, branch: null, collegeQuery: null, collegeType: null, location: null }) {
   const result = {
     cutoff: null,
     community: null,
     branch: null,
     collegeQuery: null,
+    collegeType: null,
+    location: null,
     intent: "follow_up"
   };
 
@@ -141,7 +216,11 @@ export function parseQuery(message, historyContext = { cutoff: null, community: 
     }
   }
 
-  // 5. Classify Intent
+  // 5. Extract College Type & Location
+  result.collegeType = extractCollegeType(cleanMsg);
+  result.location = extractLocation(cleanMsg);
+
+  // 6. Classify Intent
   const isGreeting = /^(hello|hi|hey|good\s+(morning|afternoon|evening)|how\s+are\s+you|how's\s+it\s+going|how\s+are\s+you\s+doing|yo|sup)\b/i.test(lowerMsg);
   const isCasual = /^(tell\s+me\s+a\s+joke|give\s+me\s+a\s+joke|i'm\s+bored|i\s+am\s+bored|talk\s+to\s+me|tell\s+me\s+a\s+story|what\s+is\s+the\s+weather|how\s+is\s+the\s+weather)\b/i.test(lowerMsg);
   
@@ -157,19 +236,22 @@ export function parseQuery(message, historyContext = { cutoff: null, community: 
   // TNEA College names / abbreviations
   const hasTneaColleges = /\b(gct|cit|psg|mit|ceg|ssn|thiagarajar|anna\s+university)\b/i.test(lowerMsg);
 
+  // College-related keywords
+  const hasCollegeKeywords = /\b(colleges?|admissions?|engineering|institutes?|university|universities)\b/i.test(lowerMsg);
+
   // Check if we have TNEA context in history
   const hasHistoryTneaContext = (historyContext && (historyContext.cutoff !== null || historyContext.community !== null));
 
   // Determine intent
   if (isGreeting || isCasual) {
     result.intent = "general";
-  } else if ((hasTechKeywords || isGeneralQuestionPattern) && !hasTneaKeywords && !hasTneaColleges && result.cutoff === null && !result.community && !/\b(branch|branches)\b/i.test(lowerMsg)) {
+  } else if ((hasTechKeywords || isGeneralQuestionPattern) && !hasTneaKeywords && !hasTneaColleges && !hasCollegeKeywords && result.cutoff === null && !result.community && !result.collegeType && !result.location && !/\b(branch|branches)\b/i.test(lowerMsg)) {
     if (result.branch && hasHistoryTneaContext) {
       result.intent = "follow_up";
     } else {
       result.intent = "general";
     }
-  } else if (!hasTneaKeywords && !hasTneaColleges && result.cutoff === null && !result.community && !result.branch && !hasHistoryTneaContext && !/\b(branch|branches)\b/i.test(lowerMsg)) {
+  } else if (!hasTneaKeywords && !hasTneaColleges && !hasCollegeKeywords && result.cutoff === null && !result.community && !result.branch && !result.collegeQuery && !result.collegeType && !result.location && !hasHistoryTneaContext && !/\b(branch|branches)\b/i.test(lowerMsg)) {
     result.intent = "general";
   } else {
     // TNEA or follow_up intent
@@ -213,7 +295,9 @@ export function extractConversationContext(conversation) {
     cutoff: null,
     community: null,
     branch: null,
-    collegeQuery: null
+    collegeQuery: null,
+    collegeType: null,
+    location: null
   };
 
   if (!conversation || !Array.isArray(conversation)) {
@@ -237,6 +321,12 @@ export function extractConversationContext(conversation) {
       }
       if (context.collegeQuery === null && parsed.collegeQuery !== null) {
         context.collegeQuery = parsed.collegeQuery;
+      }
+      if (context.collegeType === null && parsed.collegeType !== null) {
+        context.collegeType = parsed.collegeType;
+      }
+      if (context.location === null && parsed.location !== null) {
+        context.location = parsed.location;
       }
     }
   }

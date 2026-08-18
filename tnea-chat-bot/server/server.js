@@ -125,6 +125,8 @@ Always include a brief disclaimer when making college predictions: "Based on TNE
     const community = currentParsed.community !== null ? currentParsed.community : historyContext.community;
     const branch = currentParsed.branch !== null ? currentParsed.branch : historyContext.branch;
     const collegeQuery = currentParsed.collegeQuery !== null ? currentParsed.collegeQuery : historyContext.collegeQuery;
+    const collegeType = currentParsed.collegeType !== null ? currentParsed.collegeType : historyContext.collegeType;
+    const location = currentParsed.location !== null ? currentParsed.location : historyContext.location;
     const intent = currentParsed.intent;
 
     let finalSystemPrompt = systemPromptBase;
@@ -163,6 +165,8 @@ Always include a brief disclaimer when making college predictions: "Based on TNE
                 community,
                 branch,
                 collegeQuery: col,
+                collegeType,
+                location,
                 limit: 5
               });
               results = results.concat(colRes);
@@ -173,6 +177,8 @@ Always include a brief disclaimer when making college predictions: "Based on TNE
               community,
               branch,
               collegeQuery,
+              collegeType,
+              location,
               limit: 10
             });
           }
@@ -183,6 +189,8 @@ Always include a brief disclaimer when making college predictions: "Based on TNE
             community,
             branch,
             collegeQuery,
+            collegeType,
+            location,
             results
           });
 
@@ -226,7 +234,7 @@ Always include a brief disclaimer when making college predictions: "Based on TNE
 
 // TNEA Cutoff Search & Prediction Endpoint
 app.post('/api/predict', (req, res) => {
-  const { cutoff, community, branch, collegeQuery, limit } = req.body;
+  const { cutoff, community, branch, collegeQuery, collegeType, location, limit } = req.body;
 
   // 1. Cutoff Validation
   if (cutoff === undefined || cutoff === null) {
@@ -261,6 +269,8 @@ app.post('/api/predict', (req, res) => {
       community: normCommunity,
       branch,
       collegeQuery,
+      collegeType,
+      location,
       limit: limit !== undefined ? limit : 10
     });
 
@@ -269,7 +279,9 @@ app.post('/api/predict', (req, res) => {
       source: "TNEA Cutoff Marks - 2025",
       student: {
         cutoff: parsedCutoff,
-        community: normCommunity
+        community: normCommunity,
+        collegeType,
+        location
       },
       results
     });

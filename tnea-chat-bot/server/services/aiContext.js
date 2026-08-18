@@ -8,7 +8,7 @@
  * @param {array} params.results
  * @returns {string} compiled context string
  */
-export function buildAiContext({ cutoff, community, branch, collegeQuery, results }) {
+export function buildAiContext({ cutoff, community, branch, collegeQuery, collegeType, location, results }) {
   let context = `TNEA DATA SOURCE\n`;
   context += `Source: TNEA Cutoff Marks - 2025\n`;
   context += `Authority: Tamilnadu Engineering Admissions, Directorate of Technical Education Chennai\n\n`;
@@ -22,6 +22,12 @@ export function buildAiContext({ cutoff, community, branch, collegeQuery, result
   if (collegeQuery) {
     const colStr = Array.isArray(collegeQuery) ? collegeQuery.join(', ') : collegeQuery;
     context += `- Searched College: ${colStr}\n`;
+  }
+  if (collegeType) {
+    context += `- Preferred College Type: ${collegeType}\n`;
+  }
+  if (location) {
+    context += `- Preferred Location: ${location}\n`;
   }
   context += `\n`;
 
@@ -39,7 +45,9 @@ export function buildAiContext({ cutoff, community, branch, collegeQuery, result
     context += `   Branch: ${res.branch}\n`;
     context += `   Historical ${res.community} Cutoff: ${res.historicalCutoff !== null ? res.historicalCutoff : 'Data unavailable'}\n`;
     context += `   Difference: ${res.difference !== null ? diffPrefix + res.difference : 'N/A'}\n`;
-    context += `   Prediction Category: ${res.prediction}\n\n`;
+    context += `   Prediction Category: ${res.prediction}\n`;
+    context += `   College Type: ${res.collegeType || 'N/A'}${res.isAutonomous ? ' (Autonomous)' : ''}\n`;
+    context += `   Location/District: ${res.district || 'N/A'}\n\n`;
   });
 
   context += `CRITICAL DIRECTIVE:\n`;

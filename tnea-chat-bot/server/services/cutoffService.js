@@ -18,6 +18,11 @@ const cutoffRecords = dataset.data || [];
 const recordCount = dataset.record_count || 0;
 const sourceName = dataset.source || "TNEA Cutoff Marks - 2025";
 
+// Export unique districts dynamically computed from records
+export const uniqueDistricts = Array.from(
+  new Set(cutoffRecords.map(r => r.district).filter(Boolean))
+);
+
 // Supported community lists
 const SUPPORTED_COMMUNITIES = new Set(['OC', 'BC', 'BCM', 'MBC', 'SC', 'SCA', 'ST']);
 
@@ -136,6 +141,8 @@ export function findMatchingColleges({
   community,
   branch,
   collegeQuery,
+  collegeType,
+  location,
   limit = 10
 }) {
   // Validate cutoff
@@ -166,6 +173,41 @@ export function findMatchingColleges({
       continue;
     }
 
+    // College Type Filter
+    if (collegeType) {
+      const typeLower = collegeType.toLowerCase();
+      const recType = (record.college_type || '').toLowerCase();
+      const isAuto = record.is_autonomous === true;
+
+      if (typeLower === 'government') {
+        if (recType !== 'government') continue;
+      } else if (typeLower === 'autonomous') {
+        if (!isAuto) continue;
+      } else if (typeLower === 'government-aided') {
+        if (recType !== 'government-aided') continue;
+      } else if (typeLower === 'private') {
+        if (recType !== 'private') continue;
+      }
+    }
+
+    // Location/District Filter
+    if (location) {
+      const locLower = location.toLowerCase();
+      const recDist = (record.district || '').toLowerCase();
+
+      // Smart matching
+      const isLocationMatch = (
+        recDist.includes(locLower) || 
+        locLower.includes(recDist) ||
+        (locLower === 'trichy' && recDist.includes('tiruchirappalli')) ||
+        (locLower === 'kovai' && recDist.includes('coimbatore'))
+      );
+
+      if (!isLocationMatch) {
+        continue;
+      }
+    }
+
     // Get community cutoff value
     const rawVal = record[normCommunity];
     const historicalCutoff = parseCutoff(rawVal);
@@ -185,7 +227,10 @@ export function findMatchingColleges({
       historicalCutoff,
       difference,
       prediction,
-      source: sourceName
+      source: sourceName,
+      collegeType: record.college_type,
+      isAutonomous: record.is_autonomous,
+      district: record.district
     });
   }
 
